@@ -1,179 +1,297 @@
-package multithreading;
+import java.io.BufferedReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.text.DecimalFormat;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-import java.io.*;
-import java.net.*;
-import java.util.concurrent.*;
+class ClientInfo {
+    final String name;
+    final String ip;
+    final int port;
+    final long connectTime;
+    final Socket socket;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-
-class ClientInfo { // class for collecting client request information
-    String name; // client name
-    String ip; // client ip address
-    int port; // client port number 
-    long connectTime; // time for which client connected
-    Socket socket; // client socket
-
-    public ClientInfo(String name, Socket socket) { // initializing attributes upon receiving client request
+    ClientInfo(String name, Socket socket) {
         this.name = name;
         this.socket = socket;
-        this.ip = socket.getInetAddress().toString();
+        this.ip = socket.getInetAddress().getHostAddress();
         this.port = socket.getPort();
         this.connectTime = System.currentTimeMillis();
     }
 }
 
-class Request { // request class
-    String expression; // math expression to evaluate/termination request
-    ClientInfo client; // client request information (object)
+class Request {
+    final String expression;
+    final ClientInfo client;
+    final long receivedTime;
 
-    public Request(String expression, ClientInfo client) { // initializing request attributes
+    Request(String expression, ClientInfo client) {
         this.expression = expression;
         this.client = client;
+        this.receivedTime = System.currentTimeMillis();
     }
 }
 
 public class MathServer {
 
-    private static BlockingQueue<Request> queue = new LinkedBlockingQueue<>(); // queue for requests
-    private static PrintWriter logWriter; // for logging values (subject to change, untested)
+    private static final int DEFAULT_PORT = 5000;
+    private static final BlockingQueue<Request> REQUEST_QUEUE = new LinkedBlockingQueue<>();
+    private static final Object LOG_LOCK = new Object();
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DecimalFormat RESULT_FORMAT = new DecimalFormat("0.##########");
+    private static PrintWriter logWriter;
 
-    public static void main(String[] args) throws Exception { // main server setup function
-    	
-        ServerSocket serverSocket = new ServerSocket(5000); // server socket allocate, port 5000
-        System.out.println("##### - MathServer - allocated socket...");
+    public static void main(String[] args) {
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
 
-        logWriter = new PrintWriter(new FileWriter("server.log", true), true); // for logging values (subject to change, untested)
-        System.out.println("created log writer...");
+        try {
+            logWriter = new PrintWriter(new FileWriter("logging.txt", true), true);
 
-        // Worker thread (FIFO processing) - untested
-        new Thread(() -> processRequests()).start();
+            Thread requestWorker = new Thread(MathServer::processRequests, "request-worker");
+            requestWorker.setDaemon(true);
+            requestWorker.start();
 
-        System.out.println("created thread + Server running on port 5000...");
+            try (ServerSocket serverSocket = new ServerSocket(port)) {
+                System.out.println("MathServer is listening on port " + port + ".");
 
-        while (true) { // when client connects to socket, handleClient is called for that client in a new thread
-            Socket socket = serverSocket.accept();
-            new Thread(() -> handleClient(socket)).start();
-            System.out.println("accepting client on port 5000...");
+                while (true) {
+                    Socket socket = serverSocket.accept();
+                    new Thread(() -> handleClient(socket), "client-" + socket.getPort()).start();
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Server error: " + e.getMessage());
         }
     }
 
-    private static void handleClient(Socket socket) { // queuing client for sequential processing
-        try {
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // untested
-            System.out.println("##### - HandleClient - buffered reader");
-            
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true); // untested
-            System.out.println("printwriter...");
+    private static void handleClient(Socket socket) {
+        ClientInfo client = null;
+        boolean disconnectLogged = false;
 
-            // CONNECT
-            String msg = in.readLine(); // read in the provided message of client
-            System.out.println("read in message...");
+        try (Socket clientSocket = socket;
+             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
 
-            if (msg == null || !msg.startsWith("CONNECT")) { // if the message is empty/does not start with "CONNECT", terminate connection and return
-                System.out.println("termination message...");
-                socket.close();
+            String msg = in.readLine();
+            if (msg == null || !msg.startsWith("CONNECT|")) {
+                out.println("ACK|FAIL|Invalid connection request");
                 return;
             }
 
-            String name = msg.split("\\|")[1]; // extract name from message and store
-            System.out.println("store name");
-            
-            ClientInfo client = new ClientInfo(name, socket); // create ClientInfo object for this client
-            System.out.println("create new client info log file...");
+            String[] parts = msg.split("\\|", 2);
+            String name = parts.length > 1 ? parts[1].trim() : "Unknown";
 
-            log("[CONNECT]", client, ""); // log info for current client (untested)
-            System.out.println("start to log client info");
-
-            out.println("ACK|SUCCESS|Connected"); // send to client ACK of successful connection
-
-            while (true) { // when math request/termination request sent
-                String line = in.readLine(); // read in the line
-                System.out.println("read in line");
-                
-                if (line == null) break; // if the line is empty, break out of loop
-
-                if (line.startsWith("REQ")) { // if line is a math request
-                    System.out.println("this is a request");
-                    String expr = line.split("\\|")[1]; // extract expression
-                    queue.put(new Request(expr, client)); // queue the expression as new request object
-                    System.out.println("queued request");
-                }
-                else if (line.equals("DISCONNECT")) { // if line is a termination request
-                    System.out.println("terminate request detected");
-                    out.println("BYE"); // send BYE to client
-                    logDisconnect(client); // disconnect file log
-                    System.out.println("client disconnected");
-                    socket.close(); // close socket
-                    System.out.println("socket closed");
-                    break;
-                }
+            if (name.isEmpty()) {
+                out.println("ACK|FAIL|Name is required");
+                return;
             }
 
+            client = new ClientInfo(name, clientSocket);
+            System.out.println("Client connected: " + client.name + " from " + client.ip + ":" + client.port);
+            logEvent("CONNECT", client, "Successful connection established.", null);
+            out.println("ACK|SUCCESS|Connected to MathServer");
+
+            String line;
+            while ((line = in.readLine()) != null) {
+                line = line.trim();
+
+                if (line.startsWith("REQ|")) {
+                    String expr = line.substring(4).trim();
+                    System.out.println("Queued request from " + client.name + " (" + client.ip + ":" + client.port + "): " + expr);
+                    REQUEST_QUEUE.put(new Request(expr, client));
+                } else if (line.equalsIgnoreCase("DISCONNECT")) {
+                    out.println("BYE|Connection with server terminated");
+                    logDisconnect(client);
+                    disconnectLogged = true;
+                    System.out.println("Client disconnected: " + client.name + " from " + client.ip + ":" + client.port);
+                    break;
+                } else {
+                    out.println("ERROR|Unknown request format");
+                }
+            }
         } catch (Exception e) {
-            e.printStackTrace();
+            if (client != null) {
+                System.out.println("Client session error for " + client.name + ": " + e.getMessage());
+            }
+        } finally {
+            if (client != null && !disconnectLogged) {
+                logDisconnect(client);
+            }
         }
     }
 
     private static void processRequests() {
-        ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript"); // untested
-
         while (true) {
             try {
-                Request req = queue.take(); // take request from queue
-                System.out.println("#### - processRequests - process request");
+                Request req = REQUEST_QUEUE.take();
+                String result = evaluateExpression(req.expression);
 
-                String result;
-                if (!req.expression.matches("^[0-9+\\-*/(). ]+$")) { // error validation
-                    System.out.println("ERROR - expression does not match given character bank");
-                    result = "ERROR|Invalid expression";
-                } else {
-                    try {
-                        Object eval = engine.eval(req.expression); // math algorithm here (does not work)
-                        System.out.println("evaluating expression");
-                        result = eval.toString(); // convert result to string
-                    } catch (Exception e) {
-                        result = "ERROR|Evaluation failed"; // if evaluation fails, save result as error message
-                    }
-                }
+                logEvent("REQUEST", req.client,
+                        "Expression: " + req.expression + System.lineSeparator() + "Result: " + result,
+                        null);
 
                 PrintWriter out = new PrintWriter(req.client.socket.getOutputStream(), true);
-                // untested
-
-                if (result.startsWith("ERROR")) { // if result is an error, print
-                    out.println("RES|" + result);
-                } else {
-                    out.println("RES|" + result); // if result is not an error print (<- same output for both branches, is this necessary?)
-                }
-
-                log("[REQUEST]", req.client, req.expression + " = " + result); // log request (untested)
-                System.out.println("logging request");
-
+                out.println("RES|" + result);
             } catch (Exception e) {
-                e.printStackTrace();
+                System.out.println("Request processing error: " + e.getMessage());
             }
         }
     }
 
-    // LOGGING IS UNTESTED
-    private static void log(String type, ClientInfo client, String extra) {
-        logWriter.println(type);
-        logWriter.println("Name: " + client.name);
-        logWriter.println("IP: " + client.ip);
-        logWriter.println("Port: " + client.port);
-        logWriter.println("Time: " + System.currentTimeMillis());
-        if (!extra.isEmpty()) logWriter.println("Data: " + extra);
-        logWriter.println();
+    private static String evaluateExpression(String expression) {
+        if (expression == null || expression.trim().isEmpty()) {
+            return "ERROR|Empty expression";
+        }
+
+        if (!expression.matches("^[0-9+\\-*/().\\s]+$")) {
+            return "ERROR|Invalid characters in expression";
+        }
+
+        try {
+            double value = new ExpressionParser(expression).parse();
+            return RESULT_FORMAT.format(value);
+        } catch (ArithmeticException e) {
+            return "ERROR|" + e.getMessage();
+        } catch (Exception e) {
+            return "ERROR|Invalid math expression";
+        }
     }
 
     private static void logDisconnect(ClientInfo client) {
-        long duration = System.currentTimeMillis() - client.connectTime;
+        long durationMillis = System.currentTimeMillis() - client.connectTime;
+        String durationText = formatDuration(durationMillis);
+        logEvent("DISCONNECT", client, "Client disconnected from server.", durationText);
+    }
 
-        logWriter.println("[DISCONNECT]");
-        logWriter.println("Name: " + client.name);
-        logWriter.println("IP: " + client.ip);
-        logWriter.println("Port: " + client.port);
-        logWriter.println("Duration(ms): " + duration);
-        logWriter.println();
+    private static String formatDuration(long durationMillis) {
+        Duration duration = Duration.ofMillis(durationMillis);
+        long minutes = duration.toMinutes();
+        long seconds = duration.minusMinutes(minutes).toSeconds();
+        long milliseconds = duration.minusMinutes(minutes).minusSeconds(seconds).toMillis();
+        return minutes + "m " + seconds + "s " + milliseconds + "ms";
+    }
+
+    private static void logEvent(String type, ClientInfo client, String details, String duration) {
+        synchronized (LOG_LOCK) {
+            logWriter.println("==================================================");
+            logWriter.println("Event: " + type);
+            logWriter.println("Client Name: " + client.name);
+            logWriter.println("IP Address: " + client.ip);
+            logWriter.println("Port Number: " + client.port);
+            logWriter.println("Timestamp: " + LocalDateTime.now().format(TIME_FORMAT));
+            if (duration != null) {
+                logWriter.println("Duration Connected: " + duration);
+            }
+            if (details != null && !details.isBlank()) {
+                logWriter.println(details);
+            }
+            logWriter.println();
+            logWriter.flush();
+        }
+    }
+
+    private static class ExpressionParser {
+        private final String input;
+        private int position = -1;
+        private int currentChar;
+
+        ExpressionParser(String input) {
+            this.input = input;
+        }
+
+        double parse() {
+            nextChar();
+            double value = parseExpression();
+            skipWhitespace();
+            if (position < input.length()) {
+                throw new IllegalArgumentException("Unexpected character");
+            }
+            return value;
+        }
+
+        private void nextChar() {
+            currentChar = (++position < input.length()) ? input.charAt(position) : -1;
+        }
+
+        private void skipWhitespace() {
+            while (currentChar == ' ') {
+                nextChar();
+            }
+        }
+
+        private boolean eat(int charToEat) {
+            skipWhitespace();
+            if (currentChar == charToEat) {
+                nextChar();
+                return true;
+            }
+            return false;
+        }
+
+        private double parseExpression() {
+            double value = parseTerm();
+            while (true) {
+                if (eat('+')) {
+                    value += parseTerm();
+                } else if (eat('-')) {
+                    value -= parseTerm();
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private double parseTerm() {
+            double value = parseFactor();
+            while (true) {
+                if (eat('*')) {
+                    value *= parseFactor();
+                } else if (eat('/')) {
+                    double divisor = parseFactor();
+                    if (Math.abs(divisor) < 1e-12) {
+                        throw new ArithmeticException("Division by zero");
+                    }
+                    value /= divisor;
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private double parseFactor() {
+            if (eat('+')) {
+                return parseFactor();
+            }
+            if (eat('-')) {
+                return -parseFactor();
+            }
+
+            double value;
+            int start = position;
+
+            if (eat('(')) {
+                value = parseExpression();
+                if (!eat(')')) {
+                    throw new IllegalArgumentException("Missing closing parenthesis");
+                }
+            } else if ((currentChar >= '0' && currentChar <= '9') || currentChar == '.') {
+                while ((currentChar >= '0' && currentChar <= '9') || currentChar == '.') {
+                    nextChar();
+                }
+                value = Double.parseDouble(input.substring(start, position));
+            } else {
+                throw new IllegalArgumentException("Unexpected token");
+            }
+
+            return value;
+        }
     }
 }

@@ -1,0 +1,184 @@
+==================================================
+Event: CONNECT
+Client Name: Alice
+IP Address: 127.0.0.1
+Port Number: 61334
+Timestamp: 2026-04-13 19:21:44
+Successful connection established.
+
+==================================================
+Event: REQUEST
+Client Name: Alice
+IP Address: 127.0.0.1
+Port Number: 61334
+Timestamp: 2026-04-13 19:21:44
+Expression: 2+3*4
+Result: 14
+
+==================================================
+Event: REQUEST
+Client Name: Alice
+IP Address: 127.0.0.1
+Port Number: 61334
+Timestamp: 2026-04-13 19:21:44
+Expression: (10/4)+1
+Result: 3.5
+
+==================================================
+Event: DISCONNECT
+Client Name: Alice
+IP Address: 127.0.0.1
+Port Number: 61334
+Timestamp: 2026-04-13 19:21:44
+Duration Connected: 0m 0s 129ms
+Client disconnected from server.
+
+==================================================
+Event: CONNECT
+Client Name: Bob
+IP Address: 127.0.0.1
+Port Number: 61340
+Timestamp: 2026-04-13 19:21:55
+Successful connection established.
+
+==================================================
+Event: REQUEST
+Client Name: Bob
+IP Address: 127.0.0.1
+Port Number: 61340
+Timestamp: 2026-04-13 19:21:55
+Expression: 1+1
+Result: 2
+
+==================================================
+Event: DISCONNECT
+Client Name: Bob
+IP Address: 127.0.0.1
+Port Number: 61340
+Timestamp: 2026-04-13 19:21:55
+Duration Connected: 0m 0s 5ms
+Client disconnected from server.
+
+==================================================
+Event: CONNECT
+Client Name: Carol
+IP Address: 127.0.0.1
+Port Number: 61341
+Timestamp: 2026-04-13 19:21:56
+Successful connection established.
+
+==================================================
+Event: REQUEST
+Client Name: Carol
+IP Address: 127.0.0.1
+Port Number: 61341
+Timestamp: 2026-04-13 19:21:56
+Expression: 8/2
+Result: 4
+
+==================================================
+Event: REQUEST
+Client Name: Carol
+IP Address: 127.0.0.1
+Port Number: 61341
+Timestamp: 2026-04-13 19:21:56
+Expression: 7*(2+1)
+Result: 21
+
+==================================================
+Event: DISCONNECT
+Client Name: Carol
+IP Address: 127.0.0.1
+Port Number: 61341
+Timestamp: 2026-04-13 19:21:56
+Duration Connected: 0m 0s 6ms
+Client disconnected from server.
+
+==================================================
+Event: CONNECT
+Client Name: Arshiya
+IP Address: 127.0.0.1
+Port Number: 54882
+Timestamp: 2026-04-13 20:48:03
+Successful connection established.
+
+==================================================
+Event: REQUEST
+Client Name: Arshiya
+IP Address: 127.0.0.1
+Port Number: 54882
+Timestamp: 2026-04-13 20:48:36
+Expression: 2+8-1
+Result: 9
+
+==================================================
+Event: REQUEST
+Client Name: Arshiya
+IP Address: 127.0.0.1
+Port Number: 54882
+Timestamp: 2026-04-13 20:48:52
+Expression: 2+8-1   3+9/2  4-2
+Result: ERROR|Invalid math expression
+
+==================================================
+Event: REQUEST
+Client Name: Arshiya
+IP Address: 127.0.0.1
+Port Number: 54882
+Timestamp: 2026-04-13 20:50:33
+Expression: cls
+Result: ERROR|Invalid characters in expression
+
+==================================================
+Event: REQUEST
+Client Name: Arshiya
+IP Address: 127.0.0.1
+Port Number: 54882
+Timestamp: 2026-04-13 20:50:36
+Expression: wxit
+Result: ERROR|Invalid characters in expression
+
+==================================================
+Event: DISCONNECT
+Client Name: Arshiya
+IP Address: 127.0.0.1
+Port Number: 54882
+Timestamp: 2026-04-13 20:50:40
+Duration Connected: 2m 37s 398ms
+Client disconnected from server.
+
+==================================================
+Event: CONNECT
+Client Name: Dora
+IP Address: 127.0.0.1
+Port Number: 50641
+Timestamp: 2026-04-13 20:56:35
+Successful connection established.
+
+==================================================
+Event: REQUEST
+Client Name: Dora
+IP Address: 127.0.0.1
+Port Number: 50641
+Timestamp: 2026-04-13 20:56:45
+Expression: 7-3+1
+Result: 5
+
+==================================================
+Event: REQUEST
+Client Name: Dora
+IP Address: 127.0.0.1
+Port Number: 50641
+Timestamp: 2026-04-13 20:57:03
+Expression: 3-2
+Result: 1
+
+==================================================
+Event: DISCONNECT
+Client Name: Dora
+IP Address: 127.0.0.1
+Port Number: 50641
+Timestamp: 2026-04-13 20:57:06
+Duration Connected: 0m 31s 596ms
+Client disconnected from server.
+

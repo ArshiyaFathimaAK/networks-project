@@ -1,0 +1,19 @@
+[CONNECT]
+Name: Alice
+IP: /127.0.0.1
+Port: 50208
+Time: 1776125931861
+
+[DISCONNECT]
+Name: Alice
+IP: /127.0.0.1
+Port: 50208
+Duration(ms): 10
+
+[REQUEST]
+Name: Alice
+IP: /127.0.0.1
+Port: 50208
+Time: 1776125931870
+Data: 2+3 = ERROR|Evaluation failed
+
