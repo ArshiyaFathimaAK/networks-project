@@ -236,13 +236,19 @@ public class MathServer {
             return false;
         }
 
+        // Parses and evaluates addition and subtraction operations.
+        // This is the entry point of the recursive descent parser and handles
+        // the LOWEST precedence operations (+ and -), meaning they are evaluated last.
         private double parseExpression() {
-            double value = parseTerm();
-            while (true) {
-                if (eat('+')) {
-                    value += parseTerm();
+            double value = parseTerm(); // Start by parsing the first term (handles higher-precedence * and / first)
+            // Loop continuously to handle chained operations e.g. 1 + 2 + 3 - 4
+            while (true) { 
+                if (eat('+')) { // If the next character is '+', consume it and add the next term 
+                    value += parseTerm(); // e.g. value = 1, then 1+2=3, then 3+3=6
+                 // If the next character is '-', consume it and subtract the next term
                 } else if (eat('-')) {
-                    value -= parseTerm();
+                    value -= parseTerm(); // e.g. 6-4 = 2
+                // No more '+' or '-' found, so we're done at this level — return the result
                 } else {
                     return value;
                 }
