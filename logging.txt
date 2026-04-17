@@ -182,3 +182,20 @@ Timestamp: 2026-04-13 20:57:06
 Duration Connected: 0m 31s 596ms
 Client disconnected from server.
 
+==================================================
+Event: CONNECT
+Client Name: arsh
+IP Address: 127.0.0.1
+Port Number: 52874
+Timestamp: 2026-04-16 21:25:26
+Successful connection established.
+
+==================================================
+Event: REQUEST
+Client Name: arsh
+IP Address: 127.0.0.1
+Port Number: 52874
+Timestamp: 2026-04-16 21:25:29
+Expression: 2+3
+Result: 5
+
