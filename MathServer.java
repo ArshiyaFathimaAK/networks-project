@@ -155,7 +155,7 @@ public class MathServer {
         }
     }
 
-    // LOGGING IS UNTESTED
+    // LOGGING 
     private static void log(String type, ClientInfo client, String extra) {
         logWriter.println(type);
         logWriter.println("Name: " + client.name);
